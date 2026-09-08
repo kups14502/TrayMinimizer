@@ -1,0 +1,8 @@
+# Build output
+*.exe
+*.pdb
+/dist/
+
+# Editors
+.vs/
+*.user
