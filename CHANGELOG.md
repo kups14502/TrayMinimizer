@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-09-16
+
+### Fixed
+
+- Right-clicks were dropped on a window that was busy drawing, so the button often took several
+  tries in a terminal printing a lot of output. The hit test that asks the window what is under
+  the cursor cannot be answered while that window is blocked, and a timeout threw the click away.
+  Geometry is now worked out first and stands on its own when the hit test does not answer, and
+  the wait is cut to 30 ms once geometry has identified the slot, which also keeps the mouse hook
+  from running long.
+
 ## [1.0.0] - 2026-09-08
 
 First release.

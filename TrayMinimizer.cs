@@ -370,11 +370,22 @@ namespace TrayMinimizer
             if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" ||
                 cls == "Shell_SecondaryTrayWnd" || cls == "Windows.UI.Core.CoreWindow") return IntPtr.Zero;
 
+            // Where the minimize button has to be: third slot in from the right edge of the real (DWM)
+            // frame, at that window's own DPI. All local calls, so it costs the hook nothing.
+            bool inSlot = _customTitleBarFallback && IsStandardMinimizeSlot(root, pt);
+
             IntPtr lp = (IntPtr)(((pt.y & 0xFFFF) << 16) | (pt.x & 0xFFFF));
             IntPtr result;
+            // This call blocks the low-level hook, so keep the wait short when geometry already answered.
+            // A window busy drawing does not pump messages: a terminal printing a lot of output can miss
+            // 100 ms easily, and every miss used to drop the click.
+            uint timeout = inSlot ? 30u : 100u;
             IntPtr ok = Native.SendMessageTimeout(root, Native.WM_NCHITTEST, IntPtr.Zero, lp,
-                Native.SMTO_ABORTIFHUNG, 100, out result);
-            if (ok == IntPtr.Zero) return IntPtr.Zero;   // busy, or blocked because the window is elevated
+                Native.SMTO_ABORTIFHUNG, timeout, out result);
+
+            // No answer: the window is busy, or it is elevated and will never answer this process.
+            // Trust the geometry on its own rather than throw the click away.
+            if (ok == IntPtr.Zero) return inSlot ? root : IntPtr.Zero;
 
             int hit = result.ToInt32();
 
@@ -383,10 +394,7 @@ namespace TrayMinimizer
 
             // Apps that draw their own title bar (Windows Terminal, some Office and WinUI windows) report
             // the whole strip as HTCAPTION, buttons included, and expose nothing through UI Automation.
-            // Fall back to where the minimize button has to be: third slot in from the right edge of the
-            // real (DWM) frame, using that window's own DPI.
-            if (_customTitleBarFallback && hit == Native.HTCAPTION && IsStandardMinimizeSlot(root, pt))
-                return root;
+            if (inSlot && hit == Native.HTCAPTION) return root;
 
             return IntPtr.Zero;
         }
